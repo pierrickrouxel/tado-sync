@@ -1,70 +1,70 @@
 # tado-sync
 
-Synchronise automatiquement les index de compteur gaz relevés par **GRDF** (Gazpar) vers les
-relevés de compteur **Tado Energy IQ**, via une tâche planifiée tournant dans un conteneur Docker.
+Automatically syncs the gas meter indexes read by **GRDF** (Gazpar) to **Tado Energy IQ** meter
+readings, through a scheduled job running in a Docker container.
 
-## Fonctionnement
+## How it works
 
-À chaque exécution (par défaut tous les jours à 10h, heure de Paris) :
+On every run (by default every day at 10:00, Paris time):
 
-1. connexion à l'espace client [monespace.grdf.fr](https://monespace.grdf.fr) et récupération des
-   relevés journaliers informatifs des `LOOKBACK_DAYS` derniers jours ;
-2. lecture des relevés déjà présents dans Tado Energy IQ ;
-3. envoi à Tado de chaque index GRDF (en m³, arrondi à l'entier) postérieur au dernier relevé connu
-   de Tado. Une synchronisation relancée n'envoie donc jamais de doublon.
+1. log in to the [monespace.grdf.fr](https://monespace.grdf.fr) customer portal and fetch the
+   informative daily readings of the last `LOOKBACK_DAYS` days;
+2. read the readings already stored in Tado Energy IQ;
+3. push to Tado every GRDF index (in m³, rounded to an integer) newer than the latest reading
+   Tado knows. Running a sync again therefore never sends duplicates.
 
-GRDF publie généralement les données de la veille dans la matinée, d'où l'horaire par défaut.
+GRDF usually publishes the previous day's data during the morning, hence the default schedule.
 
-## Démarrage rapide
+## Quick start
 
 ```bash
-cp .env.example .env   # puis renseignez vos identifiants GRDF
+cp .env.example .env   # then fill in your GRDF credentials
 mkdir -p data && sudo chown 1000:1000 data
 docker compose up -d
 docker compose logs -f
 ```
 
-Au premier lancement, aucun token Tado n'existe : un lien `https://login.tado.com/...` s'affiche
-dans les logs. Ouvrez-le et validez l'accès avec votre compte Tado (le lien expire après quelques
-minutes, un nouveau est alors généré). Le refresh token est ensuite conservé dans
-`/data/tado-token.json` ; ce volume doit donc être persistant.
+On first start there is no Tado token yet: a `https://login.tado.com/...` link is printed in the
+logs. Open it and grant access with your Tado account (the link expires after a few minutes, a new
+one is then generated). The refresh token is then kept in `/data/tado-token.json`, so this volume
+must be persistent.
 
-Pour lancer une synchronisation unique :
+To run a single sync:
 
 ```bash
 docker run --rm --env-file .env -v ./data:/data ghcr.io/pierrickrouxel/tado-sync --once
 ```
 
-L'option `--auth` permet de seulement effectuer l'autorisation Tado puis de quitter.
+The `--auth` flag only performs the Tado authorization, then exits.
 
 ## Configuration
 
-| Variable             | Obligatoire | Défaut                  | Description                                                         |
-| -------------------- | ----------- | ----------------------- | ------------------------------------------------------------------- |
-| `GRDF_USERNAME`      | oui         |                         | E-mail de l'espace client GRDF                                      |
-| `GRDF_PASSWORD`      | oui         |                         | Mot de passe GRDF (la double authentification doit être désactivée) |
-| `GRDF_PCE`           | non         | premier PCE du compte   | Numéro de point de comptage                                         |
-| `TADO_HOME_ID`       | non         | premier logement        | Identifiant du logement Tado                                        |
-| `TADO_REFRESH_TOKEN` | non         |                         | Refresh token Tado initial, si vous en avez déjà un                 |
-| `TADO_TOKEN_FILE`    | non         | `/data/tado-token.json` | Fichier de stockage du refresh token Tado                           |
-| `CRON`               | non         | `0 10 * * *`            | Planification au format cron                                        |
-| `TZ`                 | non         | `Europe/Paris`          | Fuseau horaire de la planification                                  |
-| `LOOKBACK_DAYS`      | non         | `30`                    | Nombre de jours d'historique GRDF relus                             |
-| `RUN_ON_START`       | non         | `true`                  | Lancer une synchronisation au démarrage                             |
-| `DRY_RUN`            | non         | `false`                 | Afficher les relevés sans les envoyer à Tado                        |
-| `LOG_LEVEL`          | non         | `info`                  | `debug`, `info`, `warn` ou `error`                                  |
+| Variable             | Required | Default                 | Description                                                |
+| -------------------- | -------- | ----------------------- | ---------------------------------------------------------- |
+| `GRDF_USERNAME`      | yes      |                         | GRDF customer portal e-mail                                |
+| `GRDF_PASSWORD`      | yes      |                         | GRDF password (two-factor authentication must be disabled) |
+| `GRDF_PCE`           | no       | account's first PCE     | Metering point number                                      |
+| `TADO_HOME_ID`       | no       | account's first home    | Tado home id                                               |
+| `TADO_REFRESH_TOKEN` | no       |                         | Initial Tado refresh token, if you already have one        |
+| `TADO_TOKEN_FILE`    | no       | `/data/tado-token.json` | File storing the Tado refresh token                        |
+| `CRON`               | no       | `0 10 * * *`            | Schedule, in cron format                                   |
+| `TZ`                 | no       | `Europe/Paris`          | Time zone of the schedule                                  |
+| `LOOKBACK_DAYS`      | no       | `30`                    | Number of days of GRDF history fetched                     |
+| `RUN_ON_START`       | no       | `true`                  | Run a sync on startup                                      |
+| `DRY_RUN`            | no       | `false`                 | Log the readings without sending them to Tado              |
+| `LOG_LEVEL`          | no       | `info`                  | `debug`, `info`, `warn` or `error`                         |
 
-## API utilisées
+## APIs used
 
-- **GRDF** : l'API de l'espace client particulier (`monespace.grdf.fr/api/e-conso`), la même que
-  celle utilisée par [PyGazpar](https://github.com/ssenart/PyGazpar). L'API officielle ADICT de
-  GRDF est réservée aux entreprises partenaires.
-- **Tado** : authentification OAuth2 *device code flow* (`login.tado.com`) et API Energy IQ
+- **GRDF**: the API behind the personal customer portal (`monespace.grdf.fr/api/e-conso`), the same
+  one used by [PyGazpar](https://github.com/ssenart/PyGazpar). GRDF's official ADICT API is
+  reserved for partner companies.
+- **Tado**: OAuth2 *device code flow* authentication (`login.tado.com`) and the Energy IQ API
   (`energy-insights.tado.com/api/homes/{id}/meterReadings`).
 
-Ces API ne sont pas documentées publiquement et peuvent évoluer sans préavis.
+These APIs are not publicly documented and may change without notice.
 
-## Développement
+## Development
 
 ```bash
 npm ci
@@ -73,10 +73,10 @@ npm run build
 GRDF_USERNAME=... GRDF_PASSWORD=... DRY_RUN=true npm run sync
 ```
 
-## Versionnement et publication
+## Versioning and publishing
 
-Les messages de commit suivent les [Conventional Commits](https://www.conventionalcommits.org/fr/).
-À chaque push sur `main`, GitHub Actions exécute les tests puis
-[semantic-release](https://semantic-release.gitbook.io/) calcule la version, crée le tag et la
-release GitHub, et l'image Docker multi-architecture (`amd64`, `arm64`) est publiée sur
-`ghcr.io/pierrickrouxel/tado-sync` avec les tags `X.Y.Z`, `X.Y`, `X` et `latest`.
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/).
+On every push to `main`, GitHub Actions runs the tests, then
+[semantic-release](https://semantic-release.gitbook.io/) computes the version and creates the tag
+and the GitHub release, and the multi-architecture Docker image (`amd64`, `arm64`) is published to
+`ghcr.io/pierrickrouxel/tado-sync` with the `X.Y.Z`, `X.Y`, `X` and `latest` tags.
