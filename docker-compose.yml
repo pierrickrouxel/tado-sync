@@ -1,0 +1,7 @@
+services:
+  tado-sync:
+    image: ghcr.io/pierrickrouxel/tado-sync:latest
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/data
