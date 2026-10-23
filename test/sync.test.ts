@@ -15,13 +15,13 @@ function fakes(indexes: MeterIndex[], readings: TadoMeterReading[]) {
 describe("sync", () => {
   const now = new Date("2026-10-23T08:00:00Z");
 
-  it("interroge GRDF sur la période demandée", async () => {
+  it("queries GRDF over the lookback period", async () => {
     const { grdf, tado } = fakes([], []);
     await sync(grdf, tado, { lookbackDays: 7, now });
     expect(grdf.getMeterIndexes).toHaveBeenCalledWith("2026-10-16", "2026-10-23");
   });
 
-  it("envoie uniquement les index postérieurs au dernier relevé Tado, arrondis", async () => {
+  it("only pushes rounded indexes newer than the latest Tado reading", async () => {
     const { grdf, tado } = fakes(
       [
         { date: "2026-10-19", index: 1000.4 },
@@ -37,7 +37,7 @@ describe("sync", () => {
     expect(result.skipped).toBe(1);
   });
 
-  it("n'envoie rien en dry-run", async () => {
+  it("sends nothing in dry-run mode", async () => {
     const { grdf, tado } = fakes([{ date: "2026-10-20", index: 1003 }], []);
     const result = await sync(grdf, tado, { lookbackDays: 7, now, dryRun: true });
     expect(tado.addMeterReading).not.toHaveBeenCalled();

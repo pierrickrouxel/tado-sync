@@ -10,7 +10,7 @@ const releve = (journeeGaziere: string, indexFin: number | null): GrdfReleve => 
 });
 
 describe("toMeterIndexes", () => {
-  it("ignore les jours sans index et trie par date", () => {
+  it("skips days without an index and sorts by date", () => {
     expect(toMeterIndexes([releve("2026-10-21", 12), releve("2026-10-20", 10), releve("2026-10-22", null)])).toEqual([
       { date: "2026-10-20", index: 10 },
       { date: "2026-10-21", index: 12 },
@@ -19,7 +19,7 @@ describe("toMeterIndexes", () => {
 });
 
 describe("GrdfClient", () => {
-  it("se connecte puis récupère les relevés du PCE", async () => {
+  it("logs in then fetches the PCE readings", async () => {
     const calls: Array<{ url: string; method: string; cookie: string | null; body?: string }> = [];
     const json = (body: unknown, headers: Record<string, string> = {}) =>
       new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json", ...headers } });

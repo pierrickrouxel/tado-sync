@@ -14,7 +14,7 @@ async function tokenFile(content?: unknown): Promise<string> {
 }
 
 describe("TadoAuth", () => {
-  it("rafraîchit le token et enregistre le nouveau refresh token", async () => {
+  it("refreshes the token and saves the new refresh token", async () => {
     const file = await tokenFile({ refresh_token: "old" });
     let body: URLSearchParams | undefined;
     const fetchFn = (async (_url: URL | string, init: RequestInit = {}) => {
@@ -29,7 +29,7 @@ describe("TadoAuth", () => {
     expect(JSON.parse(await readFile(file, "utf8")).refresh_token).toBe("new");
   });
 
-  it("bascule sur le device flow sans refresh token", async () => {
+  it("falls back to the device flow without a refresh token", async () => {
     const file = await tokenFile();
     let polls = 0;
     const fetchFn = (async (url: URL | string) => {
@@ -57,7 +57,7 @@ describe("TadoAuth", () => {
 });
 
 describe("TadoClient", () => {
-  it("envoie un relevé Energy IQ sur le premier logement", async () => {
+  it("posts an Energy IQ reading to the first home", async () => {
     const requests: Array<{ url: string; method?: string; body?: string; auth: string | null }> = [];
     const fetchFn = (async (url: URL | string, init: RequestInit = {}) => {
       requests.push({

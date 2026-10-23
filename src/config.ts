@@ -2,21 +2,21 @@ export interface Config {
   grdf: {
     username: string;
     password: string;
-    /** Point de comptage (PCE). Optionnel : le premier PCE du compte est utilisé sinon. */
+    /** Metering point (PCE). Optional: defaults to the account's first PCE. */
     pce?: string;
   };
   tado: {
-    /** Fichier où est conservé le refresh token Tado (il change à chaque rafraîchissement). */
+    /** File storing the Tado refresh token (it rotates on every refresh). */
     tokenFile: string;
-    /** Refresh token initial, utilisé uniquement si le fichier de token n'existe pas encore. */
+    /** Initial refresh token, only used while the token file does not exist yet. */
     refreshToken?: string;
-    /** Identifiant du logement Tado. Optionnel : le premier logement du compte est utilisé sinon. */
+    /** Tado home id. Optional: defaults to the account's first home. */
     homeId?: number;
   };
-  /** Expression cron de la tâche planifiée. */
+  /** Cron expression of the scheduled job. */
   cron: string;
   timezone: string;
-  /** Nombre de jours d'historique GRDF relus à chaque synchronisation. */
+  /** Number of days of GRDF history fetched on every sync. */
   lookbackDays: number;
   runOnStart: boolean;
   dryRun: boolean;
@@ -26,7 +26,7 @@ type Env = Record<string, string | undefined>;
 
 function required(env: Env, name: string): string {
   const value = env[name]?.trim();
-  if (!value) throw new Error(`La variable d'environnement ${name} est obligatoire`);
+  if (!value) throw new Error(`Environment variable ${name} is required`);
   return value;
 }
 
@@ -40,7 +40,7 @@ function bool(env: Env, name: string, fallback: boolean): boolean {
   if (value === undefined) return fallback;
   if (/^(1|true|yes|on)$/i.test(value)) return true;
   if (/^(0|false|no|off)$/i.test(value)) return false;
-  throw new Error(`La variable d'environnement ${name} doit être un booléen (reçu "${value}")`);
+  throw new Error(`Environment variable ${name} must be a boolean (got "${value}")`);
 }
 
 function int(env: Env, name: string, fallback?: number): number | undefined {
@@ -48,7 +48,7 @@ function int(env: Env, name: string, fallback?: number): number | undefined {
   if (value === undefined) return fallback;
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new Error(`La variable d'environnement ${name} doit être un entier positif (reçu "${value}")`);
+    throw new Error(`Environment variable ${name} must be a positive integer (got "${value}")`);
   }
   return parsed;
 }

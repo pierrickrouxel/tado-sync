@@ -8,7 +8,7 @@ const API_BASE_URL = "https://monespace.grdf.fr/api";
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)";
 const OKTA_HEADERS = { Accept: "application/json; okta-version=1.0.0", "Content-Type": "application/json" };
 
-/** Un relevé journalier tel que renvoyé par l'espace client GRDF. */
+/** A daily reading as returned by the GRDF customer portal. */
 export interface GrdfReleve {
   journeeGaziere: string;
   dateDebutReleve?: string;
@@ -20,11 +20,11 @@ export interface GrdfReleve {
   qualificationReleve?: string | null;
 }
 
-/** Index de compteur relevé à la fin d'une journée gazière. */
+/** Meter index read at the end of a gas day. */
 export interface MeterIndex {
-  /** Date au format AAAA-MM-JJ. */
+  /** Date formatted as YYYY-MM-DD. */
   date: string;
-  /** Index du compteur en m³. */
+  /** Meter index in m³. */
   index: number;
 }
 
@@ -53,10 +53,10 @@ export class GrdfClient implements GrdfSource {
     this.jar = new CookieJar();
 
     const start = await this.request(START_URL);
-    if (!start.ok) throw new Error(`GRDF : page de connexion inaccessible (HTTP ${start.status})`);
+    if (!start.ok) throw new Error(`GRDF: login page unreachable (HTTP ${start.status})`);
     const html = await start.text();
     const match = /"stateToken"\s*:\s*"([^"]+)"/.exec(html);
-    if (!match?.[1]) throw new Error("GRDF : stateToken introuvable dans la page de connexion");
+    if (!match?.[1]) throw new Error("GRDF: stateToken not found in the login page");
     const stateToken = match[1].replace(/\\x2D/g, "-");
 
     this.jar.set("ln", this.username, "connexion.grdf.fr");
@@ -65,24 +65,24 @@ export class GrdfClient implements GrdfSource {
       headers: OKTA_HEADERS,
       body: JSON.stringify({ identifier: this.username, stateHandle: stateToken }),
     });
-    if (!identify.ok) throw new Error(`GRDF : identifiant refusé (HTTP ${identify.status})`);
+    if (!identify.ok) throw new Error(`GRDF: username rejected (HTTP ${identify.status})`);
     const { stateHandle } = (await identify.json()) as { stateHandle?: string };
-    if (!stateHandle) throw new Error("GRDF : stateHandle absent de la réponse d'identification");
+    if (!stateHandle) throw new Error("GRDF: stateHandle missing from the identify response");
 
     const challenge = await this.request(CHALLENGE_URL, {
       method: "POST",
       headers: OKTA_HEADERS,
       body: JSON.stringify({ credentials: { passcode: this.password }, stateHandle }),
     });
-    if (!challenge.ok) throw new Error(`GRDF : mot de passe refusé (HTTP ${challenge.status})`);
+    if (!challenge.ok) throw new Error(`GRDF: password rejected (HTTP ${challenge.status})`);
     const successUrl = ((await challenge.json()) as { success?: { href?: string } }).success?.href;
-    if (!successUrl) throw new Error("GRDF : connexion incomplète (authentification à deux facteurs activée ?)");
+    if (!successUrl) throw new Error("GRDF: login incomplete (is two-factor authentication enabled?)");
 
     const redirect = await this.request(successUrl);
-    if (!redirect.ok) throw new Error(`GRDF : échec de la redirection après connexion (HTTP ${redirect.status})`);
+    if (!redirect.ok) throw new Error(`GRDF: post-login redirect failed (HTTP ${redirect.status})`);
 
     this.loggedIn = true;
-    logger.info("GRDF : connecté");
+    logger.info("GRDF: logged in");
   }
 
   private async api<T>(path: string, params: Record<string, string>): Promise<T> {
@@ -92,7 +92,7 @@ export class GrdfClient implements GrdfSource {
     const response = await this.request(url.toString(), { headers: { Accept: "application/json" } });
     const contentType = response.headers.get("content-type") ?? "";
     if (!response.ok || !contentType.includes("json")) {
-      throw new Error(`GRDF : erreur sur ${path} (HTTP ${response.status}, ${contentType || "sans type"})`);
+      throw new Error(`GRDF: request to ${path} failed (HTTP ${response.status}, ${contentType || "no content type"})`);
     }
     return (await response.json()) as T;
   }
@@ -101,8 +101,8 @@ export class GrdfClient implements GrdfSource {
     if (this.pce) return this.pce;
     const list = await this.api<Array<{ idObject?: string; pce?: string }>>("/e-conso/pce", { details: "false" });
     const pce = list[0]?.idObject ?? list[0]?.pce;
-    if (!pce) throw new Error("GRDF : aucun PCE trouvé sur le compte, renseignez GRDF_PCE");
-    logger.info(`GRDF : PCE ${pce} utilisé`);
+    if (!pce) throw new Error("GRDF: no PCE found on the account, set GRDF_PCE");
+    logger.info(`GRDF: using PCE ${pce}`);
     this.pce = pce;
     return pce;
   }

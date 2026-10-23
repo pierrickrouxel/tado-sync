@@ -11,7 +11,7 @@ async function main(): Promise<void> {
   const auth = new TadoAuth(config.tado.tokenFile, config.tado.refreshToken);
   const tado = new TadoClient(auth, config.tado.homeId);
 
-  // Valide (ou obtient) l'autorisation Tado dès le démarrage, pour afficher le lien tout de suite.
+  // Check (or obtain) the Tado authorization at startup so the login link is shown right away.
   await auth.getAccessToken();
   if (args.has("--auth")) return;
 
@@ -29,10 +29,10 @@ async function main(): Promise<void> {
     try {
       await run();
     } catch (error) {
-      logger.error("Échec de la synchronisation :", error instanceof Error ? error.message : error);
+      logger.error("Sync failed:", error instanceof Error ? error.message : error);
     }
   });
-  logger.info(`Tâche planifiée « ${config.cron} » (${config.timezone}), prochaine exécution : ${job.nextRun()?.toISOString()}`);
+  logger.info(`Scheduled job "${config.cron}" (${config.timezone}), next run: ${job.nextRun()?.toISOString()}`);
   if (config.runOnStart) await job.trigger();
 
   const stop = () => {

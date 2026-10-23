@@ -2,7 +2,7 @@
   "name": "tado-sync",
   "version": "0.0.0-development",
   "private": true,
-  "description": "Synchronise les relevés de compteur gaz GRDF vers Tado Energy IQ",
+  "description": "Syncs GRDF gas meter readings to Tado Energy IQ",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.js",

@@ -5,7 +5,7 @@ interface Cookie {
   hostOnly: boolean;
 }
 
-/** Gestion minimale des cookies, suffisante pour enchaîner les redirections de connexion GRDF. */
+/** Minimal cookie handling, enough to follow the GRDF login redirect chain. */
 export class CookieJar {
   private cookies = new Map<string, Cookie>();
 
@@ -54,7 +54,7 @@ export class CookieJar {
 
 export type FetchFn = typeof fetch;
 
-/** `fetch` qui suit les redirections à la main pour conserver les cookies posés à chaque étape. */
+/** `fetch` that follows redirects manually to keep the cookies set at every hop. */
 export async function fetchWithCookies(
   jar: CookieJar,
   input: string,
@@ -80,5 +80,5 @@ export async function fetchWithCookies(
       options.headers = next;
     }
   }
-  throw new Error(`Trop de redirections en suivant ${input}`);
+  throw new Error(`Too many redirects while following ${input}`);
 }

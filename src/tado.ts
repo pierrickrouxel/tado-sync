@@ -38,8 +38,8 @@ export interface TadoTarget {
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
- * Authentification OAuth2 Tado (device code flow). Tado fait tourner le refresh token à chaque
- * utilisation : il est donc enregistré dans un fichier persistant après chaque rafraîchissement.
+ * Tado OAuth2 authentication (device code flow). Tado rotates the refresh token on every use,
+ * so it is saved to a persistent file after each refresh.
  */
 export class TadoAuth {
   private accessToken?: string;
@@ -84,14 +84,14 @@ export class TadoAuth {
   private async refresh(refreshToken: string): Promise<boolean> {
     const response = await this.tokenRequest({ grant_type: "refresh_token", refresh_token: refreshToken });
     if (!response.ok) {
-      logger.warn(`Tado : refresh token refusé (HTTP ${response.status}), nouvelle autorisation nécessaire`);
+      logger.warn(`Tado: refresh token rejected (HTTP ${response.status}), a new authorization is required`);
       return false;
     }
     await this.saveTokens((await response.json()) as TokenResponse);
     return true;
   }
 
-  /** Lance le device code flow : affiche un lien à ouvrir puis attend la validation de l'utilisateur. */
+  /** Runs the device code flow: logs a link to open, then waits for the user to approve it. */
   async deviceLogin(): Promise<void> {
     for (;;) {
       const response = await this.fetchFn(DEVICE_AUTHORIZE_URL, {
@@ -99,10 +99,10 @@ export class TadoAuth {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({ client_id: CLIENT_ID, scope: "offline_access" }),
       });
-      if (!response.ok) throw new Error(`Tado : impossible de démarrer l'autorisation (HTTP ${response.status})`);
+      if (!response.ok) throw new Error(`Tado: unable to start the authorization (HTTP ${response.status})`);
       const device = (await response.json()) as DeviceAuthorizeResponse;
       const url = device.verification_uri_complete ?? `${device.verification_uri}?user_code=${device.user_code}`;
-      logger.warn(`Tado : ouvrez ${url} pour autoriser tado-sync (code ${device.user_code})`);
+      logger.warn(`Tado: open ${url} to authorize tado-sync (code ${device.user_code})`);
 
       const deadline = Date.now() + device.expires_in * 1000;
       const interval = Math.max(device.interval ?? 5, 1) * 1000;
@@ -114,15 +114,15 @@ export class TadoAuth {
         });
         if (poll.ok) {
           await this.saveTokens((await poll.json()) as TokenResponse);
-          logger.info("Tado : autorisation accordée");
+          logger.info("Tado: authorization granted");
           return;
         }
         const { error } = (await poll.json().catch(() => ({}))) as { error?: string };
         if (error !== "authorization_pending" && error !== "slow_down") {
-          throw new Error(`Tado : autorisation refusée (${error ?? `HTTP ${poll.status}`})`);
+          throw new Error(`Tado: authorization denied (${error ?? `HTTP ${poll.status}`})`);
         }
       }
-      logger.warn("Tado : le lien d'autorisation a expiré, génération d'un nouveau lien");
+      logger.warn("Tado: the authorization link expired, generating a new one");
     }
   }
 
@@ -147,7 +147,7 @@ export class TadoClient implements TadoTarget {
     headers.set("Accept", "application/json");
     const response = await this.fetchFn(url, { ...init, headers });
     const text = await response.text();
-    if (!response.ok) throw new Error(`Tado : erreur sur ${url} (HTTP ${response.status}) ${text}`.trim());
+    if (!response.ok) throw new Error(`Tado: request to ${url} failed (HTTP ${response.status}) ${text}`.trim());
     return (text ? JSON.parse(text) : undefined) as T;
   }
 
@@ -155,8 +155,8 @@ export class TadoClient implements TadoTarget {
     if (this.homeId) return this.homeId;
     const me = await this.request<{ homes?: Array<{ id: number; name?: string }> }>(`${TADO_API_URL}/me`);
     const home = me.homes?.[0];
-    if (!home) throw new Error("Tado : aucun logement trouvé sur le compte");
-    logger.info(`Tado : logement ${home.name ?? ""} (${home.id}) utilisé`.replace("  ", " "));
+    if (!home) throw new Error("Tado: no home found on the account");
+    logger.info(`Tado: using home ${home.name ?? ""} (${home.id})`.replace("  ", " "));
     this.homeId = home.id;
     return home.id;
   }
